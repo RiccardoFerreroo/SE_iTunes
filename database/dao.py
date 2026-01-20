@@ -10,16 +10,16 @@ class DAO:
         result = []
 
         cursor = conn.cursor(dictionary=True)
-        query = """ select t.album_id,t.id, a.title,sum(t.milliseconds/60000) as durata
+        query = """ select t.album_id,t.id, a.title, sum(t.milliseconds/60000) as durata
                     from album a, track t
                     where a.id = t.album_id 
                     group by a.id
                     having durata > %s"""
 
-        cursor.execute(query, (durata_minima,))
+        cursor.execute(query, (float(durata_minima),))
 
         for row in cursor:
-            a = Album(id=row['album_id'], title=row['title'], durata=['durata'])
+            a = Album(id=row['album_id'], title=row['title'], durata=row['durata'])
             result.append(a)
 
         cursor.close()
