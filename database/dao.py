@@ -1,49 +1,56 @@
 from database.DB_connect import DBConnect
 from model.album import Album
 
-class DAO:
 
+class DAO:
     @staticmethod
-    def get_album_by_min_duration(min_duration):
-        """Restituisce gli album con durata totale > min_duration (minuti)"""
+    def carica_albums(durata_minima):
         conn = DBConnect.get_connection()
+
         result = []
+
         cursor = conn.cursor(dictionary=True)
-        query = """
-                SELECT a.id, a.title, a.artist_id, SUM(t.milliseconds)/60000 AS duration
-                FROM album a, track t
-                WHERE a.id = t.album_id
-                GROUP BY a.id, a.title, a.artist_id
-                HAVING duration > %s 
-                """
-        cursor.execute(query, (min_duration,))
+        query = """ select t.album_id,t.id, a.title,sum(t.milliseconds/60000) as durata
+                    from album a, track t
+                    where a.id = t.album_id 
+                    group by a.id
+                    having durata > %s"""
+
+        cursor.execute(query, (durata_minima,))
+
         for row in cursor:
-            album = Album(id=row['id'], title=row['title'], artist_id=row['artist_id'], duration=row['duration'])
-            result.append(album)
+            a = Album(id=row['album_id'], title=row['title'], durata=['durata'])
+            result.append(a)
+
         cursor.close()
         conn.close()
         return result
 
     @staticmethod
-    def get_album_playlist_map(albums):
-        """Restituisce un dizionario: album -> set di playlist_id in cui appaiono le sue canzoni"""
+    def album_playlist_map( lista_albums):
         conn = DBConnect.get_connection()
-        result = {a: set() for a in albums}
-        album_ids = tuple(a.id for a in albums)
-        if not album_ids:
-            return result
+        result={}
+        album_ids =[]
+        for a in lista_albums:
+            album_id = a.id
+            album_ids.append(album_id)
+        album_ids = tuple(album_ids)
+
 
         cursor = conn.cursor(dictionary=True)
-        query = f"""
-                    SELECT distinct(pt.playlist_id), t.album_id
-                    FROM track t, playlist_track pt
-                    WHERE t.id = pt.track_id and t.album_id IN {album_ids}
-                """
+        query = f""" select distinct t.album_id,pt.playlist_id 
+                    from track t, playlist_track pt 
+                    where pt.track_id= t.id and t.album_id in {album_ids}"""
         cursor.execute(query)
         for row in cursor:
-            album = next((a for a in albums if a.id == row['album_id']), None)
-            if album:
-                result[album].add(row['playlist_id'])
-        cursor.close()
-        conn.close()
+            a_id =row['album_id']
+            playlist_id = row['playlist_id']
+            for oggetto in lista_albums:
+                if oggetto.id == a_id:
+                    if oggetto not in result:
+                        result[oggetto] = set()
+                    result[oggetto].add(playlist_id)
+
         return result
+
+
