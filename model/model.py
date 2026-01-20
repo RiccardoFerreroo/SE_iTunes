@@ -7,6 +7,7 @@ class Model:
         self._dao= DAO
         self.lista_albums = []
         self.album_lista_playlists = {}
+        self.soluzione_best = []
 
     def carica_albums(self, durata_minima):
         self.lista_albums = self._dao.carica_albums(durata_minima)#lista di oggetti album con durata>d_min
@@ -36,5 +37,35 @@ class Model:
         durata_totale = sum(a.durata for a in lista_a_connessi)
         lunghezza_a_connessi = len(lista_a_connessi)
         return durata_totale, lunghezza_a_connessi
+
+
+
+    def cerca_grafo_dTOT(self, max_duration, start_album):
+        """Ricerca ricorsiva del set massimo di album nella componente connessa"""
+        component = self.cerca_grafo(start_album)
+        self.soluzione_best = []
+        self._ricorsione(component, [start_album], start_album.durata, max_duration)
+
+        return self.soluzione_best
+
+
+    def _ricorsione(self, albums, current_set, current_duration, max_duration):
+        if len(current_set) > len(self.soluzione_best):
+            self.soluzione_best = current_set[:]
+
+        for album in albums:
+            if album in current_set:
+                continue
+            new_duration = current_duration + album.durata
+            if new_duration <= max_duration:
+                current_set.append(album)
+                self._ricorsione(albums, current_set, new_duration, max_duration)
+                current_set.pop()
+
+
+
+
+
+
 
 
