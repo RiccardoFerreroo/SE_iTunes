@@ -1,56 +1,48 @@
+from flet.core import row
+
 from database.DB_connect import DBConnect
 from model.album import Album
 
 
 class DAO:
     @staticmethod
-    def carica_albums(durata_minima):
+    def get_album_durata(durata):
         conn = DBConnect.get_connection()
 
-        result = []
-
         cursor = conn.cursor(dictionary=True)
-        query = """ select t.album_id,t.id, a.title, sum(t.milliseconds/60000) as durata
+        query = """ select a.id, a.title, sum(t.milliseconds/60000) as durata
                     from album a, track t
-                    where a.id = t.album_id 
-                    group by a.id
-                    having durata > %s"""
+                    where t.album_id = a.id 
+                    group by a.id 
+                    having sum(t.milliseconds/60000)>= %s """
 
-        cursor.execute(query, (float(durata_minima),))
+        cursor.execute(query, (durata,))
 
-        for row in cursor:
-            a = Album(id=row['album_id'], title=row['title'], durata=row['durata'])
-            result.append(a)
-
+        result =[Album(row['id'], row['title'], row['durata']) for row in cursor]
+        #print(result)
         cursor.close()
         conn.close()
         return result
-
     @staticmethod
-    def album_playlist_map( lista_albums):
+    def get_edges_a_connessi(list_a_d):
         conn = DBConnect.get_connection()
-        result={}
-        album_ids =[]
-        for a in lista_albums:
-            album_id = a.id
-            album_ids.append(album_id)
+        cursor = conn.cursor(dictionary=True)
+        album_ids = [a.id for a in list_a_d]
         album_ids = tuple(album_ids)
 
-
-        cursor = conn.cursor(dictionary=True)
-        query = f""" select distinct t.album_id,pt.playlist_id 
-                    from track t, playlist_track pt 
-                    where pt.track_id= t.id and t.album_id in {album_ids}"""
+        query = f""" select album_id, playlist_id
+                    from playlist_track pt, track t
+                    where pt.track_id =t.id and t.album_id in {album_ids}"""
         cursor.execute(query)
+        result = {}
         for row in cursor:
-            a_id =row['album_id']
+            album_id = row['album_id']
             playlist_id = row['playlist_id']
-            for oggetto in lista_albums:
-                if oggetto.id == a_id:
-                    if oggetto not in result:
-                        result[oggetto] = set()
-                    result[oggetto].add(playlist_id)
+            if album_id not in result:
+                result[album_id] = set()
+            result[album_id].add(playlist_id)
+        cursor.close()
+        conn.close()
 
         return result
-
 
